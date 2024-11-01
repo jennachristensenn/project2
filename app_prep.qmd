@@ -10,25 +10,24 @@ library(ggbeeswarm)
 library(ggExtra)
 ```
 
-
 ## Data Exploration
 
 Variables:
 
-- User ID: Unique identifier for each user.
-- Device Model: Model of the user's smartphone.
-- Operating System: The OS of the device (iOS or Android).
-- App Usage Time: Daily time spent on mobile applications, measured in minutes.
-- Screen On Time: Average hours per day the screen is active.
-- Battery Drain: Daily battery consumption in mAh.
-- Number of Apps Installed: Total apps available on the device.
-- Data Usage: Daily mobile data consumption in megabytes.
-- Age: Age of the user.
-- Gender: Gender of the user (Male or Female).
-- User Behavior Class: Classification of user behavior based on usage patterns (1 to 5).
-
+-   User ID: Unique identifier for each user.
+-   Device Model: Model of the user's smartphone.
+-   Operating System: The OS of the device (iOS or Android).
+-   App Usage Time: Daily time spent on mobile applications, measured in minutes.
+-   Screen On Time: Average hours per day the screen is active.
+-   Battery Drain: Daily battery consumption in mAh.
+-   Number of Apps Installed: Total apps available on the device.
+-   Data Usage: Daily mobile data consumption in megabytes.
+-   Age: Age of the user.
+-   Gender: Gender of the user (Male or Female).
+-   User Behavior Class: Classification of user behavior based on usage patterns (1 to 5).
 
 Reading in and manipulating data
+
 ```{r}
 dev_data <- read_csv("user_behavior_dataset.csv")
 head(dev_data)
@@ -52,6 +51,7 @@ dev_data
 ```
 
 Investigating missing values
+
 ```{r}
 sum_na <- function(column){
  sum(is.na(column))
@@ -62,7 +62,8 @@ na_counts <- dev_data |>
 na_counts
 ```
 
-One way contingency tables for categorical variables 
+One way contingency tables for categorical variables
+
 ```{r}
 device_model_counts <- table(dev_data$dev_mod)
 device_model_counts
@@ -77,7 +78,8 @@ user_behavior_class_counts <- table(dev_data$user_class)
 user_behavior_class_counts
 ```
 
-Two way contingency tables for categorical variables 
+Two way contingency tables for categorical variables
+
 ```{r}
 dev_mod_op_sys <- table(dev_data$dev_mod, dev_data$op_sys)
 dev_mod_op_sys
@@ -89,7 +91,8 @@ gender_user_class <- table(dev_data$gender, dev_data$user_class)
 gender_user_class
 ```
 
-Numerical summaries at levels of categorical variables 
+Numerical summaries at levels of categorical variables
+
 ```{r}
 screen_time_gender <- dev_data |>
   group_by(gender) |>
@@ -107,7 +110,8 @@ bat_drain_dev_mod <- dev_data |>
 bat_drain_dev_mod
 ```
 
-Plots from class 
+Plots from class
+
 ```{r}
 ggplot(data = dev_data, aes(x = user_class, fill = gender)) +
   geom_bar(position = "dodge") +
@@ -132,6 +136,7 @@ ggplot(data = dev_data, aes(x = age, fill = dev_mod)) +
 ```
 
 Plots that we haven't looked at before
+
 ```{r}
 ggplot(dev_data, aes(dev_mod, screen_time, color = user_class)) + 
   geom_beeswarm(dodge.width = 1) +
@@ -143,5 +148,3 @@ scatter <- ggplot(data = dev_data, aes(x = screen_time, y = bat_drain, color = g
   scale_color_discrete("Gender")
 ggMarginal(scatter, groupColour = TRUE, groupFill = TRUE)
 ```
-
-
