@@ -6,6 +6,8 @@ editor: visual
 
 ```{r}
 library(tidyverse)
+library(ggbeeswarm)
+library(ggExtra)
 ```
 
 
@@ -26,9 +28,120 @@ Variables:
 - User Behavior Class: Classification of user behavior based on usage patterns (1 to 5).
 
 
-Reading in the data
+Reading in and manipulating data
 ```{r}
 dev_data <- read_csv("user_behavior_dataset.csv")
 head(dev_data)
+
+dev_data <- dev_data |>
+  rename("user_id" = "User ID",
+         "dev_mod" = "Device Model", 
+         "op_sys" = "Operating System",
+         "app_use_time" = "App Usage Time (min/day)",
+         "screen_time" = "Screen On Time (hours/day)",
+         "bat_drain" = "Battery Drain (mAh/day)",
+         "num_apps" = "Number of Apps Installed",
+         "dat_use" = "Data Usage (MB/day)",
+         "age" = "Age",
+         "gender" = "Gender",
+         "user_class" = "User Behavior Class") |>
+  mutate(across(c(dev_mod, op_sys, gender, user_class), as.factor)) |>
+  mutate(user_id = as.character(user_id))
+
+dev_data
 ```
+
+Investigating missing values
+```{r}
+sum_na <- function(column){
+ sum(is.na(column))
+}
+na_counts <- dev_data |>
+ summarize(across(everything(), sum_na))
+
+na_counts
+```
+
+One way contingency tables for categorical variables 
+```{r}
+device_model_counts <- table(dev_data$dev_mod)
+device_model_counts
+
+operating_sys_counts <- table(dev_data$op_sys)
+operating_sys_counts
+
+gender_counts <- table(dev_data$gender)
+gender_counts
+
+user_behavior_class_counts <- table(dev_data$user_class)
+user_behavior_class_counts
+```
+
+Two way contingency tables for categorical variables 
+```{r}
+dev_mod_op_sys <- table(dev_data$dev_mod, dev_data$op_sys)
+dev_mod_op_sys
+
+dev_mod_gender <- table(dev_data$dev_mod, dev_data$gender)
+dev_mod_gender
+
+gender_user_class <- table(dev_data$gender, dev_data$user_class)
+gender_user_class
+```
+
+Numerical summaries at levels of categorical variables 
+```{r}
+screen_time_gender <- dev_data |>
+  group_by(gender) |>
+  summarize(screen_time_mean = mean(screen_time), screen_time_median = median(screen_time),  screen_time_sd = sd(screen_time))
+screen_time_gender
+
+num_apps_op_sys <- dev_data |>
+  group_by(op_sys) |>
+  summarize(num_apps_mean = mean(num_apps), num_apps_median = median(num_apps), num_apps_sd = sd(num_apps))
+num_apps_op_sys
+
+bat_drain_dev_mod <- dev_data |>
+  group_by(dev_mod) |>
+  summarize(bat_drain_mean = mean(bat_drain), bat_drain_median = median(bat_drain), bat_drain_sd = sd(bat_drain))
+bat_drain_dev_mod
+```
+
+Plots from class 
+```{r}
+ggplot(data = dev_data, aes(x = user_class, fill = gender)) +
+  geom_bar(position = "dodge") +
+  labs(x = "User Behavior Class", title = "User Behavior Class and Gender") + 
+  scale_fill_discrete("Gender")
+
+ggplot(data = dev_data, aes(x = screen_time, y = bat_drain, color = gender)) +
+  geom_point() +
+  labs(x = "Screen Time (hr/day)", y = "Battery Drain (mAh)", title = "Screen Time and Battery Drain by Gender") +
+  scale_color_discrete("Gender")
+
+ggplot(data = dev_data, aes(x = screen_time, fill = user_class)) +
+  geom_density() +
+  labs(x = "Screen Time (hr/day)", title = "Screen Time and User Behavior Class") +
+  scale_fill_discrete("User Behavior Class")
+
+ggplot(data = dev_data, aes(x = age, fill = dev_mod)) +
+  geom_histogram(binwidth = 5,position = "identity", alpha = 0.7) +
+  labs(x = "Age", title = "Age and Device Model") +
+  scale_fill_discrete("Device Model") +
+  facet_wrap(~ dev_mod)
+```
+
+Plots that we haven't looked at before
+```{r}
+ggplot(dev_data, aes(dev_mod, screen_time, color = user_class)) + 
+  geom_beeswarm(dodge.width = 1) +
+  ggtitle("Device Model and Screen Time by User Behavior Class")
+
+scatter <- ggplot(data = dev_data, aes(x = screen_time, y = bat_drain, color = gender)) +
+  geom_point() +
+  labs(x = "Screen Time (hr/day)", y = "Battery Drain (mAh)", title = "Screen Time and Battery Drain by Gender") +
+  scale_color_discrete("Gender")
+ggMarginal(scatter, groupColour = TRUE, groupFill = TRUE)
+```
+
 
