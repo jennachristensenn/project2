@@ -31,12 +31,30 @@ ui <- fluidPage(
     sidebarPanel(
       # character var to select
       h2("Select Variables to Subset the Data:"),
-      selectizeInput("cat_var",
-                     "Categorical Variable(s):",
-                     # need to add in option for "all"
-                     choices = c("dev_mod", "op_sys", "gender", "user_class"), 
-                     multiple = TRUE,
-                     selected = NULL),
+      radioButtons("char_var1",
+                   "Device Model",
+                   choiceValues = c("All",
+                                    "Google Pixel 5", 
+                                    "OnePlus 9",
+                                    "Xiaomi Mi 11",
+                                    "iPhone 12",
+                                    "Samsung Galaxy S21"),
+                   choiceNames = c("All",
+                                   "Google Pixel", 
+                                   "OnePlus",
+                                   "Xiaomi Mi",
+                                   "iPhone",
+                                   "Samsung Galaxy S21")
+      ),
+      radioButtons("char_var2",
+                   "Gender",
+                   choiceValues = c("All",
+                                    "Male",
+                                    "Female"),
+                   choiceNames =  c("All",
+                                    "Male",
+                                    "Female")
+      ),
       # numeric var to select
       selectizeInput("num_var1",
                      "Numeric Variable:",
@@ -53,7 +71,7 @@ ui <- fluidPage(
       uiOutput("slider_var2"),
       # button to subset
       actionButton("subset_sample","Subset the Data!")
-    ),
+      ),
       mainPanel(
         tabsetPanel(
           # tabs information
@@ -101,16 +119,27 @@ server <- function(input, output, session) {
                           max(dev_data[[input$num_var2]])))
   })
   
-  # subset data 
+  # subset data (reacts to slider every time values are changed after button is hit once)
   filtered_data <- reactive({
     req(input$subset_sample)
     data_subset <- dev_data
     
-    # filter for cat and num var
-    if (!is.null(input$cat_var) && length(input$cat_var) > 0) {
+    ## debug
+    print(paste("Device Model Selected:", input$char_var1))
+    print(paste("Gender Selected:", input$char_var2))
+    
+    # radio button subset (char)
+    if (input$char_var1 != "All") {
       data_subset <- data_subset %>%
-        filter(across(all_of(input$cat_var), ~ . %in% input[[.]]))  # adjust 
+        filter(as.character(dev_mod) == input$char_var1)
     }
+    
+    if (input$char_var2 != "All") {
+      data_subset <- data_subset %>%
+        filter(as.character(gender) == input$char_var2)
+    }
+    
+    # select subset (num)
     if (!is.null(input$num_var1)) {
       data_subset <- data_subset %>%
         filter(get(input$num_var1) >= input$slider_var1[1],
@@ -122,16 +151,17 @@ server <- function(input, output, session) {
                get(input$num_var2) <= input$slider_var2[2])
     }
     
+    ## debug
+    print(paste("Number of Rows After Filtering:", nrow(data_subset))) 
     return(data_subset)
   })
   
   # data table output
   output$data_table <- DT::renderDataTable({
-    if (input$subset_sample == 0){
+    if (input$subset_sample == 0) {
       return(dev_data)
     } else {
-      return(filtered_data())
-    }
+      return(filtered_data())}
   })
   
   # download the data
