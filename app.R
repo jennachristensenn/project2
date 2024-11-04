@@ -25,7 +25,7 @@ dev_data <- dev_data |>
 # Define UI for application 
 ui <- fluidPage(
   
-  titlePanel("Mobil Device Data Exploration"),
+  titlePanel("Mobile Device Data Exploration"),
   
   sidebarLayout(
     sidebarPanel(
@@ -55,7 +55,7 @@ ui <- fluidPage(
                                     "Male",
                                     "Female")
       ),
-      # numeric var to select
+      # numeric var to select -- find a way to fix names
       selectizeInput("num_var1",
                      "Numeric Variable:",
                      choices = c("app_use_time", "screen_time", "bat_drain", "num_apps", "bat_use", "age"),
@@ -77,12 +77,19 @@ ui <- fluidPage(
           # tabs information
           tabPanel("About", 
                    h3("Purpose of the application!"),
-                   p("This Shiny app lets you look at differernt aspects of mobile device data. Try subsetting the data and exploring the numeric and graphical summaries of the data. More to be added later...")),
+                   p("This Shiny app lets you look at differernt aspects of mobile device data. Try subsetting the data and exploring the numeric and graphical summaries of the data. More to be added later..."),
+                   p("The original data source is available on kaggle: "),
+                   a("Mobile Device Usage and User Behavior Dataset", href = "https://www.kaggle.com/datasets/valakhorasani/mobile-device-usage-and-user-behavior-dataset"),
+                   img(src = "phonesBetter.jpg", width = "60%")
+                   ),
+          
           tabPanel("Data Download", 
                    h3("Subset and download the data!"),
                    p("Explore the mobile device data below. You can download the full dataset, or select variables on the sidebar to subset the data. Click the 'Download Data' button to save a copy to your computer. "),
                    DT::dataTableOutput("data_table"),
-                   downloadButton("download_data", "Download Data")),
+                   downloadButton("download_data", "Download Data")
+                   ),
+          
           tabPanel("Data Exploration", 
                    h3("Numeric and graphic summaries!"),
                    p("Explore the data using different subsets you find interesting..."))
@@ -120,13 +127,9 @@ server <- function(input, output, session) {
   })
   
   # subset data (reacts to slider every time values are changed after button is hit once)
-  filtered_data <- reactive({
-    req(input$subset_sample)
-    data_subset <- dev_data
-    
-    ## debug
-    print(paste("Device Model Selected:", input$char_var1))
-    print(paste("Gender Selected:", input$char_var2))
+  filtered_data <- reactiveVal(dev_data)
+    observeEvent(input$subset_sample, {
+      data_subset <- dev_data
     
     # radio button subset (char)
     if (input$char_var1 != "All") {
@@ -150,10 +153,8 @@ server <- function(input, output, session) {
         filter(get(input$num_var2) >= input$slider_var2[1],
                get(input$num_var2) <= input$slider_var2[2])
     }
-    
-    ## debug
-    print(paste("Number of Rows After Filtering:", nrow(data_subset))) 
-    return(data_subset)
+  
+    filtered_data(data_subset)
   })
   
   # data table output
