@@ -30,7 +30,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       # character var to select
-      h2("Select Variables to Subset the Data:"),
+      h3("Select Variables to Subset the Data:"),
       radioButtons("char_var1",
                    "Device Model",
                    choiceValues = c("All",
@@ -70,16 +70,22 @@ ui <- fluidPage(
                      selected = NULL),
       uiOutput("slider_var2"),
       # button to subset
-      actionButton("subset_sample","Subset the Data!")
+      actionButton("subset_sample","Subset the Data")
       ),
       mainPanel(
         tabsetPanel(
           # tabs information
           tabPanel("About", 
-                   h3("Purpose of the application!"),
-                   p("This Shiny app lets you look at differernt aspects of mobile device data. Try subsetting the data and exploring the numeric and graphical summaries of the data. More to be added later..."),
-                   p("The original data source is available on kaggle: "),
+                   h3("Purpose of the application"),
+                   p("This Shiny app lets you explore differernt aspects of mobile device data by subsetting the data, allowing you to save a copy to your computer, and investigate different numeric and grpahic summaries."),
+                   p("This data is posted on kaggle, where it is owned an updated by vala khorasani. The data includes 11 variables and 700 samples of user data for the purpose of 'analyzing mobile usage patterns and user behavior classification across devices.'"),
+                   p("For more information, view the original data source on kaggle: "),
                    a("Mobile Device Usage and User Behavior Dataset", href = "https://www.kaggle.com/datasets/valakhorasani/mobile-device-usage-and-user-behavior-dataset"),
+                   h3("Layout of the Application"),
+                   p("The sidebar is where you can select character and numeric variables to subset the data. Note that your selections will only change the data after the 'Subset the Data' button is pressed."),
+                   p("Here in the Abount tab you have an overview of the application and information about the mobile device dataset."),
+                   p("In the Download Data tab you will see a preview of a data table, and can make adjustents to this by subsetting on the sidebar. Additionally, you can download a copy of the original or subsetted data to your computer with the 'Download Data' button."),
+                   p("In the Data Exploration tab is where you can explore both qualitative and quantitative summaries as well as graphical representations of the data. Note that you must select desired variables with the sidebar in order to see the output display. "),
                    img(src = "phonesBetter.jpg", width = "60%")
                    ),
           
@@ -92,7 +98,35 @@ ui <- fluidPage(
           
           tabPanel("Data Exploration", 
                    h3("Numeric and graphic summaries!"),
-                   p("Explore the data using different subsets you find interesting..."))
+                   p("Explore the data using different subsets you find interesting..."),
+                   tabsetPanel(
+                     
+                     tabPanel("Qualitative Summaries", 
+                              p("Select one or two character variables to display a contingency table."),
+                              selectizeInput("cont_var", 
+                                             "Character Variable(s):",
+                                             choices = c("dev_mod", "op_sys", "age", "gender", "user_class"),
+                                             multiple = TRUE,
+                                             selected = NULL),
+                              actionButton("cont_button", "Show Contingency Table"),
+                              verbatimTextOutput("contingency_table")
+                              ),
+                     
+                     tabPanel("Numeric Summaries",
+                              p("Select a numeric variable to display a summary of the values."),
+                              selectizeInput("sum_var", 
+                                             "Numeric Vriable:",
+                                             choices = c("app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use"),
+                                             multiple = FALSE,
+                                             selected = NULL),
+                              actionButton("sum_button", "Show Numeric Summaries"),
+                              verbatimTextOutput("numeric_summary")
+                              ),
+                     
+                     tabPanel("Graphical Summaries", 
+                              p("Explore visualizations here."))
+                              #plotOutput("data_plot"))
+                   ))
         )
       )
     )
@@ -126,7 +160,7 @@ server <- function(input, output, session) {
                           max(dev_data[[input$num_var2]])))
   })
   
-  # subset data (reacts to slider every time values are changed after button is hit once)
+  # subset data 
   filtered_data <- reactiveVal(dev_data)
     observeEvent(input$subset_sample, {
       data_subset <- dev_data
@@ -168,12 +202,51 @@ server <- function(input, output, session) {
   # download the data
   output$download_data <- downloadHandler(
     filename = function() {
-      paste("mobile_device_data_", ".csv", sep = "") 
+      paste("mobile_device_data", ".csv", sep = "") 
     },
     content = function(file) {
       write_csv(filtered_data(), file)  
     }
   )
+  
+  # null values for buttons
+  tab_char_var <- reactiveVal(NULL)
+  sum_num_var <- reactiveVal(NULL)
+  
+  # contingency table output
+  observeEvent(input$cont_button, {
+    tab_char_var(input$cont_var)
+    
+    output$contingency_table <- renderPrint({
+      req(tab_char_var())
+      
+      if (length(tab_char_var()) == 1) {
+        table(dev_data[[tab_char_var()[1]]])
+        
+      } else if (length(tab_char_var()) == 2) {
+        table(dev_data[[tab_char_var()[1]]], dev_data[[tab_char_var()[2]]])
+        
+      } else {
+        "Please select one or two character variables."
+      }
+    })
+  })
+  
+  # numeric summaries output
+  observeEvent(input$sum_button, {
+    sum_num_var(input$sum_var)
+    
+    output$numeric_summary <- renderPrint({
+      req(sum_num_var())
+      
+      var_data <- dev_data[[sum_num_var()]]
+      list(
+        Summary = summary(var_data),
+        Sd = sd(var_data)
+      )
+    })
+  })
+  
 }
 
 shinyApp(ui = ui, server = server)
