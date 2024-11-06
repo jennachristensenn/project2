@@ -5,14 +5,6 @@ library(dplyr)
 library(DT)
 library(shinycssloaders)
 
-
-# additions:
-# - add spinners
-# - write the readme
-# - add names so the variable choices are nicer 
-# - look into reset buttons 
-# - deploy to shiny
-
 # reading in and manipulating data
 dev_data <- read_csv("user_behavior_dataset.csv")
 
@@ -133,9 +125,13 @@ ui <- fluidPage(
                             p("Select one or two character variables to display a contingency table. Please note your subset of the data will be reflected in the summary."),
                             selectizeInput("cont_var", 
                                            "Character Variable(s):",
-                                           choices = c("dev_mod", "op_sys", "age", "gender", "user_class"),
+                                           choices = c("",
+                                                       "Device Model" = "dev_mod", 
+                                                       "Operating System" = "op_sys", 
+                                                       "Gender" = "gender", 
+                                                       "User Behavior Class" = "user_class"),
                                            multiple = TRUE,
-                                           selected = NULL),
+                                           selected = ""),
                             actionButton("cont_button", "Show Categorical Summary"),
                             verbatimTextOutput("contingency_table")
                    ),
@@ -163,11 +159,19 @@ ui <- fluidPage(
                             p("Select a categorical variable for the x-axis to explore bar charts. Additionally select a variable to differentiate between groups. Please note your subset of the data will be reflected in the graph. "),
                             selectInput("cat_x_var",
                                         "x-axis:",
-                                        choices = c("","dev_mod", "op_sys", "age", "gender", "user_class"),
+                                        choices = c("",
+                                                    "Device Model" = "dev_mod", 
+                                                    "Operating System" = "op_sys", 
+                                                    "Gender" = "gender", 
+                                                    "User Behavior Class" = "user_class"),
                                         selected = ""),
                             selectInput("cat_fill_var",
                                         "Group By:",
-                                        choices = c("","dev_mod", "op_sys", "age", "gender", "user_class"),
+                                        choices = c("",
+                                                    "Device Model" = "dev_mod", 
+                                                    "Operating System" = "op_sys", 
+                                                    "Gender" = "gender", 
+                                                    "User Behavior Class" = "user_class"),
                                         selected = ""),
                             actionButton("bar_button", "Show Categorical Visualization"),
                             withSpinner(plotOutput("categorical_plot"))
@@ -198,7 +202,11 @@ ui <- fluidPage(
                                         ),
                                         selected = ""),
                             selectInput("num_fill_var", "Group By:", 
-                                        choices = c("", "dev_mod", "op_sys", "age", "gender", "user_class"),
+                                        choices = c("",
+                                                    "Device Model" = "dev_mod", 
+                                                    "Operating System" = "op_sys", 
+                                                    "Gender" = "gender", 
+                                                    "User Behavior Class" = "user_class"),
                                         selected = ""),
                             actionButton("plot_button", "Show Numeric Visualization"),
                             withSpinner(plotOutput("numeric_plot")))
@@ -225,10 +233,10 @@ server <- function(input, output, session) {
     req(slide_num_var1())
     sliderInput("slider_var1",
                 label = paste("Select values for", slide_num_var1()),
-                min = min(dev_data[[slide_num_var1()]], na.rm = TRUE),
-                max = max(dev_data[[slide_num_var1()]], na.rm = TRUE),
-                value = c(min(dev_data[[slide_num_var1()]], na.rm = TRUE), 
-                          max(dev_data[[slide_num_var1()]], na.rm = TRUE)))
+                min = min(dev_data[[slide_num_var1()]]),
+                max = max(dev_data[[slide_num_var1()]]),
+                value = c(min(dev_data[[slide_num_var1()]]), 
+                          max(dev_data[[slide_num_var1()]])))
   })
   
   observeEvent(input$num_var2, {
@@ -239,18 +247,18 @@ server <- function(input, output, session) {
   output$slider_var2 <- renderUI({
     req(slide_num_var2())
     sliderInput("slider_var2",
-                label = paste("Select values for", input$num_var2),
-                min = min(dev_data[[input$num_var2]], na.rm = TRUE),
-                max = max(dev_data[[input$num_var2]], na.rm = TRUE),
-                value = c(min(dev_data[[input$num_var2]], na.rm = TRUE), 
-                          max(dev_data[[input$num_var2]], na.rm = TRUE)))
+                label = paste("Select values for", slide_num_var2()),
+                min = min(dev_data[[slide_num_var2()]]),
+                max = max(dev_data[[slide_num_var2()]]),
+                value = c(min(dev_data[[slide_num_var2()]]), 
+                          max(dev_data[[slide_num_var2()]])))
   })
   
   # subset data 
   observeEvent(input$subset_sample, {
     data_subset <- dev_data
     
-    # radio button subset (character variables)
+    # radio button subset 
     if (input$char_var1 != "All") {
       data_subset <- data_subset %>%
         filter(dev_mod == input$char_var1)
@@ -261,7 +269,7 @@ server <- function(input, output, session) {
         filter(gender == input$char_var2)
     }
     
-    # numeric variables subset with conditional checks
+    # numeric variables selection
     if (input$num_var1 != "") {  
       data_subset <- data_subset %>%
         filter(get(input$num_var1) >= input$slider_var1[1],
