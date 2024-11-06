@@ -136,9 +136,7 @@ server <- function(input, output, session) {
   
   # slider num_var1 conditional 
   output$slider_var1 <- renderUI({
-    print(paste("Numeric Variable 1 Selected:", input$num_var1)) 
-    if(is.null(input$num_var1)) {
-      return(NULL)}
+    req(input$num_var1)
     sliderInput("slider_var1",
                 label = paste("Select values for", input$num_var1),
                 min = min(dev_data[[input$num_var1]]),
@@ -149,9 +147,7 @@ server <- function(input, output, session) {
   
   # slider num_var2 conditional 
   output$slider_var2 <- renderUI({
-    print(paste("Numeric Variable 2 Selected:", input$num_var2))
-    if(is.null(input$num_var2)){
-      return(NULL)}
+    req(input$num_var2)
     sliderInput("slider_var2",
                 label = paste("Select values for", input$num_var2),
                 min = min(dev_data[[input$num_var2]]),
@@ -168,15 +164,15 @@ server <- function(input, output, session) {
     # radio button subset (char)
     if (input$char_var1 != "All") {
       data_subset <- data_subset %>%
-        filter(as.character(dev_mod) == input$char_var1)
+        filter(dev_mod == input$char_var1)
     }
     
     if (input$char_var2 != "All") {
       data_subset <- data_subset %>%
-        filter(as.character(gender) == input$char_var2)
+        filter(gender == input$char_var2)
     }
     
-    # select subset (num)
+    # select subset (num) -- may need to adjust
     if (!is.null(input$num_var1)) {
       data_subset <- data_subset %>%
         filter(get(input$num_var1) >= input$slider_var1[1],
@@ -191,12 +187,18 @@ server <- function(input, output, session) {
     filtered_data(data_subset)
   })
   
+  # using the filtered data for summary and graphout unless not subset  
+  sub_data <- reactive({
+    if (input$subset_sample > 0) {
+      filtered_data()
+    } else {
+      dev_data
+    }
+  })
+  
   # data table output
   output$data_table <- DT::renderDataTable({
-    if (input$subset_sample == 0) {
-      return(dev_data)
-    } else {
-      return(filtered_data())}
+    sub_data()
   })
   
   # download the data
@@ -221,10 +223,10 @@ server <- function(input, output, session) {
       req(tab_char_var())
       
       if (length(tab_char_var()) == 1) {
-        table(dev_data[[tab_char_var()[1]]])
+        table(sub_data()[[tab_char_var()[1]]])
         
       } else if (length(tab_char_var()) == 2) {
-        table(dev_data[[tab_char_var()[1]]], dev_data[[tab_char_var()[2]]])
+        table(sub_data()[[tab_char_var()[1]]], sub_data()[[tab_char_var()[2]]])
         
       } else {
         "Please select one or two character variables."
@@ -239,14 +241,14 @@ server <- function(input, output, session) {
     output$numeric_summary <- renderPrint({
       req(sum_num_var())
       
-      var_data <- dev_data[[sum_num_var()]]
+      var_data <- sub_data()[[sum_num_var()]]
       list(
         Summary = summary(var_data),
         Sd = sd(var_data)
       )
     })
   })
-  
+
 }
 
 shinyApp(ui = ui, server = server)
