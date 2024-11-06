@@ -5,11 +5,13 @@ library(dplyr)
 library(DT)
 library(shinycssloaders)
 
+
 # additions:
+# - add spinners
+# - write the readme
 # - add names so the variable choices are nicer 
 # - look into reset buttons 
 # - deploy to shiny
-# - don't allow same var selection
 
 # reading in and manipulating data
 dev_data <- read_csv("user_behavior_dataset.csv")
@@ -28,24 +30,6 @@ dev_data <- dev_data |>
          "user_class" = "User Behavior Class") |>
   mutate(across(c(dev_mod, op_sys, gender, user_class), as.factor)) |>
   mutate(user_id = as.character(user_id))
-
-num_choices <- c(
-  "App Usage Time (min/day)" = "app_use_time",
-  "Screen On Time (hr/day)" = "screen_time",
-  "Battery Drain (mAh/day)" = "bat_drain",
-  "Number of Apps Installed" = "num_apps",
-  "Battery Usage (MB/day)" = "bat_use", 
-  "Age" = "age"
-  )
-
-char_choices <- c(
-  "Device Model" = "dev_mod",
-  "Operating System" = "op_sys",
-  "Gender" = "gender",
-  "User Behavior Class" = "user_class"
-  )
-
-
 
 # define UI for application 
 ui <- fluidPage(
@@ -83,172 +67,191 @@ ui <- fluidPage(
       # numeric var to select 
       selectizeInput("num_var1",
                      "Numeric Variable:",
-                     choices = num_choices,
+                     choices = list(
+                       "",
+                       "App Usage Time (min/day)" = "app_use_time",
+                       "Screen On Time (hours/day)" = "screen_time",
+                       "Battery Drain (mAh/day)" = "bat_drain",
+                       "Number of Apps Installed" = "num_apps",
+                       "Data Usage (MB/day)" = "dat_use",
+                       "Age" = "age"
+                     ),
                      multiple = FALSE,
                      selected = ""),
       uiOutput("slider_var1"),
       
       selectizeInput("num_var2",
                      "Numeric Variable:",
-                     choices = num_choices,
+                     choices = list(
+                       "",
+                       "App Usage Time (min/day)" = "app_use_time",
+                       "Screen On Time (hours/day)" = "screen_time",
+                       "Battery Drain (mAh/day)" = "bat_drain",
+                       "Number of Apps Installed" = "num_apps",
+                       "Data Usage (MB/day)" = "dat_use",
+                       "Age" = "age"
+                     ),
                      multiple = FALSE,
                      selected = ""),
       uiOutput("slider_var2"),
       
       # button to subset
       actionButton("subset_sample","Subset the Data")
-      ),
+    ),
     
-      mainPanel(
-        tabsetPanel(
-          
-          # tabs information
-          tabPanel("About", 
-                   h3("Purpose of the application"),
-                   p("This Shiny app lets you explore differernt aspects of mobile device data by subsetting the data, allowing you to save a copy to your computer, and investigate different numeric and grpahic summaries."),
-                   p("This data is posted on kaggle, where it is owned an updated by vala khorasani. The data includes 11 variables and 700 samples of user data for the purpose of 'analyzing mobile usage patterns and user behavior classification across devices.'"),
-                   p("For more information, view the original data source on kaggle: "),
-                   a("Mobile Device Usage and User Behavior Dataset", href = "https://www.kaggle.com/datasets/valakhorasani/mobile-device-usage-and-user-behavior-dataset"),
-                   h3("Layout of the Application"),
-                   p("The sidebar is where you can select character and numeric variables to subset the data. Note that your selections will only change the data after the 'Subset the Data' button is pressed."),
-                   p("Here in the Abount tab you have an overview of the application and information about the mobile device dataset."),
-                   p("In the Download Data tab you will see a preview of a data table, and can make adjustents to this by subsetting on the sidebar. Additionally, you can download a copy of the original or subsetted data to your computer with the 'Download Data' button."),
-                   p("In the Data Exploration tab is where you can explore both qualitative and quantitative summaries as well as graphical representations of the data."),
-                   img(src = "phonesBetter.jpg", width = "60%")
+    mainPanel(
+      tabsetPanel(
+        
+        # tabs information
+        tabPanel("About", 
+                 h3("Purpose of the application"),
+                 p("This Shiny app lets you explore differernt aspects of mobile device data by subsetting the data, allowing you to save a copy to your computer, and investigate different numeric and grpahic summaries."),
+                 p("This data is posted on kaggle, where it is owned an updated by vala khorasani. The data includes 11 variables and 700 samples of user data for the purpose of 'analyzing mobile usage patterns and user behavior classification across devices.'"),
+                 p("For more information, view the original data source on kaggle: "),
+                 a("Mobile Device Usage and User Behavior Dataset", href = "https://www.kaggle.com/datasets/valakhorasani/mobile-device-usage-and-user-behavior-dataset"),
+                 h3("Layout of the Application"),
+                 p("The sidebar is where you can select character and numeric variables to subset the data. Note that your selections will only change the data after the 'Subset the Data' button is pressed."),
+                 p("Here in the Abount tab you have an overview of the application and information about the mobile device dataset."),
+                 p("In the Download Data tab you will see a preview of a data table, and can make adjustents to this by subsetting on the sidebar. Additionally, you can download a copy of the original or subsetted data to your computer with the 'Download Data' button."),
+                 p("In the Data Exploration tab is where you can explore both qualitative and quantitative summaries as well as graphical representations of the data."),
+                 img(src = "phonesBetter.jpg", width = "60%")
+        ),
+        
+        tabPanel("Data Download", 
+                 h3("Subset and download the data"),
+                 p("Explore the mobile device data below. You can download the full dataset, or select variables on the sidebar to subset the data. Click the 'Download Data' button to save a copy to your computer. "),
+                 DT::dataTableOutput("data_table"),
+                 downloadButton("download_data", "Download Data")
+        ),
+        
+        tabPanel("Data Exploration", 
+                 h3("Numeric and graphic summaries"),
+                 p("Explore the data using different methods such as contingency tables, numeric summaries, and graphical diaplays. Use the sidepanel to subset the data as well as the available selections in each of the tabs below."),
+                 tabsetPanel(
+                   
+                   tabPanel("Categorical Summaries", 
+                            p("Select one or two character variables to display a contingency table. Please note your subset of the data will be reflected in the summary."),
+                            selectizeInput("cont_var", 
+                                           "Character Variable(s):",
+                                           choices = c("dev_mod", "op_sys", "age", "gender", "user_class"),
+                                           multiple = TRUE,
+                                           selected = NULL),
+                            actionButton("cont_button", "Show Categorical Summary"),
+                            verbatimTextOutput("contingency_table")
                    ),
-          
-          tabPanel("Data Download", 
-                   h3("Subset and download the data"),
-                   p("Explore the mobile device data below. You can download the full dataset, or select variables on the sidebar to subset the data. Click the 'Download Data' button to save a copy to your computer. "),
-                   DT::dataTableOutput("data_table"),
-                   downloadButton("download_data", "Download Data")
+                   
+                   tabPanel("Numeric Summaries",
+                            p("Select a numeric variable to display a summary of the values. Please note your subset of the data will be reflected in the summary."),
+                            selectizeInput("sum_var", 
+                                           "Numeric Variable:",
+                                           choices = c("","app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use"),
+                                           multiple = FALSE,
+                                           selected = ""),
+                            actionButton("sum_button", "Show Numeric Summary"),
+                            verbatimTextOutput("numeric_summary")
                    ),
-          
-          tabPanel("Data Exploration", 
-                   h3("Numeric and graphic summaries"),
-                   p("Explore the data using different methods such as contingency tables, numeric summaries, and graphical diaplays. Use the sidepanel to subset the data as well as the available selections in each of the tabs below."),
-                   tabsetPanel(
-                     
-                     tabPanel("Categorical Summaries", 
-                              p("Select one or two character variables to display a contingency table. Please note your subset of the data will be reflected in the summary."),
-                              selectizeInput("cont_var", 
-                                             "Character Variable(s):",
-                                             choices = char_choices,
-                                             multiple = TRUE,
-                                             selected = NULL),
-                              actionButton("cont_button", "Show Categorical Summary"),
-                              verbatimTextOutput("contingency_table")
-                              ),
-                     
-                     tabPanel("Numeric Summaries",
-                              p("Select a numeric variable to display a summary of the values. Please note your subset of the data will be reflected in the summary."),
-                              selectizeInput("sum_var", 
-                                             "Numeric Variable:",
-                                             choices = num_choices,
-                                             multiple = FALSE,
-                                             selected = NULL),
-                              actionButton("sum_button", "Show Numeric Summary"),
-                              verbatimTextOutput("numeric_summary")
-                              ),
-                     
-                     tabPanel("Categorical Visualizations", 
-                              p("Select a categorical variable for the x-axis to explore bar charts. Additionally select a variable to differentiate between groups. Please note your subset of the data will be reflected in the graph. "),
-                              selectInput("cat_x_var",
-                                          "x-axis:",
-                                          choices = char_choices,
-                                          selected = NULL),
-                              selectInput("cat_fill_var",
-                                          "Group By:",
-                                          choices = char_choices,
-                                          selected = NULL),
-                              actionButton("bar_button", "Show Categorical Visualization"),
-                              withSpinner(plotOutput("categorical_plot"))
-                              ),
-                     
-                     tabPanel("Numeric Visualizations",
-                              p("Select a numeric variable for the x-axis to explore numeric graphs. Additionally, select a y-axis variable and a fill variable to display variations or groupings in the data. Please note your subset of the data will be reflected in the graph."),
-                              selectInput("num_x_var", "x-axis:", 
-                                          choices = num_choices,
-                                          selected = NULL),
-                              selectInput("num_y_var", "y-axis:", 
-                                          choices = num_choices,
-                                          selected = NULL),
-                              selectInput("num_fill_var", "Group By:", 
-                                          choices = char_choices,
-                                          selected = NULL),
-                              actionButton("plot_button", "Show Numeric Visualization"),
-                              withSpinner(plotOutput("numeric_plot")))
-                   ))
-        )
+                   
+                   tabPanel("Categorical Visualizations", 
+                            p("Select a categorical variable for the x-axis to explore bar charts. Additionally select a variable to differentiate between groups. Please note your subset of the data will be reflected in the graph. "),
+                            selectInput("cat_x_var",
+                                        "x-axis:",
+                                        choices = c("","dev_mod", "op_sys", "age", "gender", "user_class"),
+                                        selected = ""),
+                            selectInput("cat_fill_var",
+                                        "Group By:",
+                                        choices = c("","dev_mod", "op_sys", "age", "gender", "user_class"),
+                                        selected = ""),
+                            actionButton("bar_button", "Show Categorical Visualization"),
+                            withSpinner(plotOutput("categorical_plot"))
+                   ),
+                   
+                   tabPanel("Numeric Visualizations",
+                            p("Select a numeric variable for the x-axis to explore numeric graphs. Additionally, select a y-axis variable and a fill variable to display variations or groupings in the data. Please note your subset of the data will be reflected in the graph."),
+                            selectInput("num_x_var", "x-axis:", 
+                                        choices = c("", "app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use", "age"),
+                                        selected = ""),
+                            selectInput("num_y_var", "y-axis:", 
+                                        choices = c("", "app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use", "age"),
+                                        selected = ""),
+                            selectInput("num_fill_var", "Group By:", 
+                                        choices = c("", "dev_mod", "op_sys", "age", "gender", "user_class"),
+                                        selected = ""),
+                            actionButton("plot_button", "Show Numeric Visualization"),
+                            withSpinner(plotOutput("numeric_plot")))
+                 ))
       )
     )
+  )
 )
 
 server <- function(input, output, session) {
   
-  # Null values for sliders
+  # null values for sliders
   slide_num_var1 <- reactiveVal(NULL)
   slide_num_var2 <- reactiveVal(NULL)
   
   observeEvent(input$num_var1, {
-    slide_num_var1(num_choices[input$num_var1])
+    slide_num_var1(input$num_var1)
   })
   
-  # Slider for num_var1
+  # slider num_var1 conditional 
   output$slider_var1 <- renderUI({
     req(slide_num_var1())
     sliderInput("slider_var1",
                 label = paste("Select values for", slide_num_var1()),
-                min = min(dev_data[[slide_num_var1()]], na.rm = TRUE),
-                max = max(dev_data[[slide_num_var1()]], na.rm = TRUE),
-                value = c(min(dev_data[[slide_num_var1()]], na.rm = TRUE), 
-                          max(dev_data[[slide_num_var1()]], na.rm = TRUE)))
+                min = min(dev_data[[slide_num_var1()]]),
+                max = max(dev_data[[slide_num_var1()]]),
+                value = c(min(dev_data[[slide_num_var1()]]), 
+                          max(dev_data[[slide_num_var1()]])))
   })
   
   observeEvent(input$num_var2, {
-    slide_num_var2(num_choices[input$num_var2])
+    slide_num_var2(input$num_var2)
   })
   
-  # Slider for num_var2
+  # slider num_var2 conditional 
   output$slider_var2 <- renderUI({
     req(slide_num_var2())
     sliderInput("slider_var2",
-                label = paste("Select values for", slide_num_var2()),
-                min = min(dev_data[[slide_num_var2()]], na.rm = TRUE),
-                max = max(dev_data[[slide_num_var2()]], na.rm = TRUE),
-                value = c(min(dev_data[[slide_num_var2()]], na.rm = TRUE), 
-                          max(dev_data[[slide_num_var2()]], na.rm = TRUE)))
+                label = paste("Select values for", input$num_var2),
+                min = min(dev_data[[input$num_var2]]),
+                max = max(dev_data[[input$num_var2]]),
+                value = c(min(dev_data[[input$num_var2]]), 
+                          max(dev_data[[input$num_var2]])))
   })
   
-  # Filtered data reactive
+  # subset data 
   filtered_data <- reactiveVal(dev_data)
   observeEvent(input$subset_sample, {
     data_subset <- dev_data
     
-    # Apply character variable filters
+    # radio button subset (char)
     if (input$char_var1 != "All") {
-      data_subset <- data_subset %>% filter(dev_mod == input$char_var1)
-    }
-    if (input$char_var2 != "All") {
-      data_subset <- data_subset %>% filter(gender == input$char_var2)
+      data_subset <- data_subset %>%
+        filter(dev_mod == input$char_var1)
     }
     
-    # Apply numeric variable filters
-    if (!is.null(input$num_var1) && input$num_var1 != "") {
+    if (input$char_var2 != "All") {
       data_subset <- data_subset %>%
-        filter(get(slide_num_var1()) >= input$slider_var1[1],
-               get(slide_num_var1()) <= input$slider_var1[2])
+        filter(gender == input$char_var2)
     }
-    if (!is.null(input$num_var2) && input$num_var2 != "") {
+    
+    # select subset (num) -- may need to adjust
+    if (!is.null(input$num_var1)) {
       data_subset <- data_subset %>%
-        filter(get(slide_num_var2()) >= input$slider_var2[1],
-               get(slide_num_var2()) <= input$slider_var2[2])
+        filter(get(input$num_var1) >= input$slider_var1[1],
+               get(input$num_var1) <= input$slider_var1[2])
+    }
+    if (!is.null(input$num_var2)) {
+      data_subset <- data_subset %>%
+        filter(get(input$num_var2) >= input$slider_var2[1],
+               get(input$num_var2) <= input$slider_var2[2])
     }
     
     filtered_data(data_subset)
   })
   
-  # Using the filtered data unless not set 
+  # using the filtered data unless not set 
   sub_data <- reactive({
     if (input$subset_sample > 0) {
       filtered_data()
@@ -257,12 +260,12 @@ server <- function(input, output, session) {
     }
   })
   
-  # Data table output
+  # data table output
   output$data_table <- DT::renderDataTable({
     sub_data()
   })
   
-  # Download the data
+  # download the data
   output$download_data <- downloadHandler(
     filename = function() {
       paste("mobile_device_data", ".csv", sep = "") 
@@ -272,11 +275,11 @@ server <- function(input, output, session) {
     }
   )
   
-  # Null values for summary buttons
+  # null values for summary buttons
   tab_char_var <- reactiveVal(NULL)
   sum_num_var <- reactiveVal(NULL)
   
-  # Contingency table output
+  # contingency table output
   observeEvent(input$cont_button, {
     tab_char_var(input$cont_var)
     
@@ -295,7 +298,7 @@ server <- function(input, output, session) {
     })
   })
   
-  # Numeric summaries output
+  # numeric summaries output
   observeEvent(input$sum_button, {
     sum_num_var(input$sum_var)
     
@@ -310,68 +313,64 @@ server <- function(input, output, session) {
     })
   })
   
-  # Null values for graph buttons
+  # null values for graph buttons
   char_x_var <- reactiveVal(NULL)
   char_fill_var <- reactiveVal(NULL)
   num_x_var <- reactiveVal(NULL)
   num_y_var <- reactiveVal(NULL)
   num_fill_var <- reactiveVal(NULL)
   
-  # Categorical variable graphs
+  # cat var graphs
   observeEvent(input$bar_button, {
-    char_x_var(char_choices[input$cat_x_var])
-    char_fill_var(char_choices[input$cat_fill_var])
+    char_x_var(input$cat_x_var)
+    char_fill_var(input$cat_fill_var)
   })
   
   output$categorical_plot <- renderPlot({
     req(char_x_var())
     current_data <- sub_data()
     
-    # Define plot with conditional `fill` aesthetic
-    plot <- ggplot(current_data, aes(x = .data[[char_x_var()]])) +
+    plot <-ggplot(current_data, aes_string(x = char_x_var())) +
       geom_bar(position = "dodge") +
-      labs(x = input$cat_x_var, title = input$cat_x_var)
+      labs(x = char_x_var(), title = char_x_var())
     
-    if (!is.null(char_fill_var()) && char_fill_var() != "") {
-      plot <- plot + aes(fill = .data[[char_fill_var()]]) +
-        labs(fill = input$cat_fill_var)
+    if (char_fill_var() != "") {
+      plot <- plot + aes_string(fill =char_fill_var(), group = char_fill_var()) +
+        labs(fill = char_fill_var())
     }
     plot
   })
   
-  # Numeric variable graphs
+  #num var graphs
   observeEvent(input$plot_button, {
-    num_x_var(num_choices[input$num_x_var])
-    num_y_var(num_choices[input$num_y_var])
-    num_fill_var(char_choices[input$num_fill_var])
+    num_x_var(input$num_x_var)
+    num_y_var(input$num_y_var)
+    num_fill_var(input$num_fill_var)
   })
   
   output$numeric_plot <- renderPlot({
     req(num_x_var())
     current_data <- sub_data()
     
-    # Histogram if only x-axis is selected
-    if (is.null(num_y_var()) || num_y_var() == "") {
-      plot <- ggplot(current_data, aes(x = .data[[num_x_var()]])) +
-        geom_histogram(bins = 30, aes(fill = ifelse(num_fill_var() != "", .data[[num_fill_var()]], NA))) +
-        labs(x = input$num_x_var, title = input$num_x_var)
+    if (num_y_var() == "" || is.null(num_y_var())) {
+      plot <- ggplot(current_data, aes_string(x = num_x_var())) +
+        geom_histogram(bins = 30, aes_string(fill = if (num_fill_var() != "") num_fill_var() else NULL)) +
+        labs(x = num_x_var(), title = num_x_var())
       
-      if (!is.null(num_fill_var()) && num_fill_var() != "") {
-        plot <- plot + labs(fill = input$num_fill_var)
-      }
+      if (num_fill_var() != "") {
+        plot <- plot + labs(fill = num_fill_var())}
+    } else {
+      plot <- ggplot(current_data, aes_string(x = num_x_var(), y = num_y_var())) +
+        geom_point(aes_string(color = if (num_fill_var() != "") num_fill_var() else NULL)) +
+        labs(x = num_x_var(), y = num_y_var(),btitle = paste(num_y_var(), "vs", num_x_var()))
       
-    } else {  # Scatter plot if both x and y axes are selected
-      plot <- ggplot(current_data, aes(x = .data[[num_x_var()]], y = .data[[num_y_var()]])) +
-        geom_point(aes(color = ifelse(num_fill_var() != "", .data[[num_fill_var()]], NA))) +
-        labs(x = input$num_x_var, y = input$num_y_var, title = paste(input$num_y_var, "vs", input$num_x_var))
-      
-      if (!is.null(num_fill_var()) && num_fill_var() != "") {
-        plot <- plot + labs(color = input$num_fill_var)
+      if (num_fill_var() != "") {
+        plot <- plot + labs(color = num_fill_var())
       }
     }
-    
     plot  
   })
+  
 }
 
 shinyApp(ui = ui, server = server)
