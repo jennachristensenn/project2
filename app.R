@@ -133,6 +133,7 @@ ui <- fluidPage(
                                            multiple = TRUE,
                                            selected = ""),
                             actionButton("cont_button", "Show Categorical Summary"),
+                            actionButton("reset_cont", "Clear"),
                             verbatimTextOutput("contingency_table")
                    ),
                    
@@ -152,6 +153,7 @@ ui <- fluidPage(
                                            multiple = FALSE,
                                            selected = ""),
                             actionButton("sum_button", "Show Numeric Summary"),
+                            actionButton("reset_sum", "Clear"),
                             verbatimTextOutput("numeric_summary")
                    ),
                    
@@ -174,6 +176,7 @@ ui <- fluidPage(
                                                     "User Behavior Class" = "user_class"),
                                         selected = ""),
                             actionButton("bar_button", "Show Categorical Visualization"),
+                            actionButton("reset_cat_vis", "Clear"),
                             withSpinner(plotOutput("categorical_plot"))
                    ),
                    
@@ -209,6 +212,7 @@ ui <- fluidPage(
                                                     "User Behavior Class" = "user_class"),
                                         selected = ""),
                             actionButton("plot_button", "Show Numeric Visualization"),
+                            actionButton("reset_num_vis", "Clear"),
                             withSpinner(plotOutput("numeric_plot")))
                  ))
       )
@@ -332,6 +336,10 @@ server <- function(input, output, session) {
     })
   })
   
+  observeEvent(input$reset_cont, {
+    updateSelectizeInput(session, "cont_var", selected = "")
+  })
+  
   # numeric summaries output
   observeEvent(input$sum_button, {
     sum_num_var(input$sum_var)
@@ -345,6 +353,10 @@ server <- function(input, output, session) {
         Sd = sd(var_data, na.rm = TRUE)
       )
     })
+  })
+  
+  observeEvent(input$reset_sum, {
+    updateSelectizeInput(session, "sum_var", selected = "")
   })
   
   # null values for graph buttons
@@ -373,6 +385,11 @@ server <- function(input, output, session) {
         labs(fill = char_fill_var())
     }
     plot
+  })
+  
+  observeEvent(input$reset_cat_vis, {
+    updateSelectInput(session, "cat_x_var", selected = "")
+    updateSelectInput(session, "cat_fill_var", selected = "")
   })
   
   # num var plot
@@ -404,6 +421,12 @@ server <- function(input, output, session) {
       }
     }
     plot  
+  })
+  
+  observeEvent(input$reset_num_vis, {
+    updateSelectInput(session, "num_x_var", selected = "")
+    updateSelectInput(session, "num_y_var", selected = "")
+    updateSelectInput(session, "num_fill_var", selected = "")
   })
   
 }
