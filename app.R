@@ -4,7 +4,7 @@ library(tidyverse)
 library(dplyr)
 library(DT)
 
-#source("app_prep.qmd")
+# reading in and manipulating data
 dev_data <- read_csv("user_behavior_dataset.csv")
 
 dev_data <- dev_data |>
@@ -22,7 +22,7 @@ dev_data <- dev_data |>
   mutate(across(c(dev_mod, op_sys, gender, user_class), as.factor)) |>
   mutate(user_id = as.character(user_id))
 
-# Define UI for application 
+# define UI for application 
 ui <- fluidPage(
   
   titlePanel("Mobile Device Data Exploration"),
@@ -90,42 +90,66 @@ ui <- fluidPage(
                    ),
           
           tabPanel("Data Download", 
-                   h3("Subset and download the data!"),
+                   h3("Subset and download the data"),
                    p("Explore the mobile device data below. You can download the full dataset, or select variables on the sidebar to subset the data. Click the 'Download Data' button to save a copy to your computer. "),
                    DT::dataTableOutput("data_table"),
                    downloadButton("download_data", "Download Data")
                    ),
           
           tabPanel("Data Exploration", 
-                   h3("Numeric and graphic summaries!"),
-                   p("Explore the data using different subsets you find interesting..."),
+                   h3("Numeric and graphic summaries"),
+                   p("Explore the data using different methods such as contingency tables, numeric summaries, and graphical diaplays. Use the sidepanel to subset the data as well as the available selections in each of the tabs below."),
                    tabsetPanel(
                      
-                     tabPanel("Qualitative Summaries", 
-                              p("Select one or two character variables to display a contingency table."),
+                     tabPanel("Categorical Summaries", 
+                              p("Select one or two character variables to display a contingency table. Please note your subset of the data will be reflected in the summary."),
                               selectizeInput("cont_var", 
                                              "Character Variable(s):",
-                                             choices = c("dev_mod", "op_sys", "age", "gender", "user_class"),
+                                             choices = c("dev_mod", "op_sys", "age", "gender", "user_class"), #try to add names to these so the variables look better
                                              multiple = TRUE,
                                              selected = NULL),
-                              actionButton("cont_button", "Show Contingency Table"),
+                              actionButton("cont_button", "Show Categorical Summary"),
                               verbatimTextOutput("contingency_table")
                               ),
                      
                      tabPanel("Numeric Summaries",
-                              p("Select a numeric variable to display a summary of the values."),
+                              p("Select a numeric variable to display a summary of the values. Please note your subset of the data will be reflected in the summary."),
                               selectizeInput("sum_var", 
-                                             "Numeric Vriable:",
-                                             choices = c("app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use"),
+                                             "Numeric Variable:",
+                                             choices = c("","app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use"),
                                              multiple = FALSE,
                                              selected = NULL),
-                              actionButton("sum_button", "Show Numeric Summaries"),
+                              actionButton("sum_button", "Show Numeric Summary"),
                               verbatimTextOutput("numeric_summary")
                               ),
                      
-                     tabPanel("Graphical Summaries", 
-                              p("Explore visualizations here."))
-                              #plotOutput("data_plot"))
+                     tabPanel("Categorical Visualizations", 
+                              p("Select a categorical variable for the x-axis to explore bar charts. Additionally select a variable to differentiate between groups. Please note your subset of the data will be reflected in the graph. "),
+                              selectInput("cat_x_var",
+                                          "x-axis:",
+                                          choices = c("","dev_mod", "op_sys", "age", "gender", "user_class"),
+                                          selected = ""),
+                              selectInput("cat_fill_var",
+                                          "Group By:",
+                                          choices = c("","dev_mod", "op_sys", "age", "gender", "user_class"),
+                                          selected = ""),
+                              actionButton("bar_button", "Show Categorical Visualization"),
+                              plotOutput("categorical_plot")
+                              ),
+                     
+                     tabPanel("Numeric Visualizations",
+                              p("Select a numeric variable for the x-axis to explore numeric graphs. Additionally, select a y-axis variable and a fill variable to display variations or groupings in the data. Please note your subset of the data will be reflected in the graph."),
+                              selectInput("num_x_var", "x-axis:", 
+                                          choices = c("", "app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use", "age"),
+                                          selected = ""),
+                              selectInput("num_y_var", "y-axis:", 
+                                          choices = c("", "app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use", "age"),
+                                          selected = ""),
+                              selectInput("num_fill_var", "Group By:", 
+                                          choices = c("", "dev_mod", "op_sys", "age", "gender", "user_class"),
+                                          selected = ""),
+                              actionButton("plot_button", "Show Numeric Visualization"),
+                              plotOutput("numeric_plot"))
                    ))
         )
       )
@@ -134,15 +158,27 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
+  # null values for sliders
+  slide_num_var1 <- reactiveVal(NULL)
+  slide_num_var2 <- reactiveVal(NULL)
+  
+  observeEvent(input$num_var1, {
+    slide_num_var1(input$num_var1)
+  })
+  
   # slider num_var1 conditional 
   output$slider_var1 <- renderUI({
-    req(input$num_var1)
+    req(slide_num_var1())
     sliderInput("slider_var1",
-                label = paste("Select values for", input$num_var1),
-                min = min(dev_data[[input$num_var1]]),
-                max = max(dev_data[[input$num_var1]]),
-                value = c(min(dev_data[[input$num_var1]]), 
-                          max(dev_data[[input$num_var1]])))
+                label = paste("Select values for", slide_num_var1()),
+                min = min(dev_data[[slide_num_var1()]]),
+                max = max(dev_data[[slide_num_var1()]]),
+                value = c(min(dev_data[[slide_num_var1()]]), 
+                          max(dev_data[[slide_num_var1()]])))
+  })
+  
+  observeEvent(input$num_var2, {
+    slide_num_var2(input$num_var2)
   })
   
   # slider num_var2 conditional 
@@ -187,7 +223,7 @@ server <- function(input, output, session) {
     filtered_data(data_subset)
   })
   
-  # using the filtered data for summary and graphout unless not subset  
+  # using the filtered data unless not set 
   sub_data <- reactive({
     if (input$subset_sample > 0) {
       filtered_data()
@@ -211,7 +247,7 @@ server <- function(input, output, session) {
     }
   )
   
-  # null values for buttons
+  # null values for summary buttons
   tab_char_var <- reactiveVal(NULL)
   sum_num_var <- reactiveVal(NULL)
   
@@ -247,6 +283,64 @@ server <- function(input, output, session) {
         Sd = sd(var_data)
       )
     })
+  })
+  
+  # null values for graph buttons
+  char_x_var <- reactiveVal(NULL)
+  char_fill_var <- reactiveVal(NULL)
+  num_x_var <- reactiveVal(NULL)
+  num_y_var <- reactiveVal(NULL)
+  num_fill_var <- reactiveVal(NULL)
+  
+  # cat var graphs
+  observeEvent(input$bar_button, {
+    char_x_var(input$cat_x_var)
+    char_fill_var(input$cat_fill_var)
+  })
+  
+  output$categorical_plot <- renderPlot({
+    req(char_x_var())
+    current_data <- sub_data()
+    
+    plot <-ggplot(current_data, aes_string(x = char_x_var())) +
+      geom_bar(position = "dodge") +
+      labs(x = char_x_var(), title = char_x_var())
+    
+    if (char_fill_var() != "") {
+      plot <- plot + aes_string(fill =char_fill_var(), group = char_fill_var()) +
+        labs(fill = char_fill_var())
+      }
+      plot
+    })
+  
+  #num var graphs
+  observeEvent(input$plot_button, {
+    num_x_var(input$num_x_var)
+    num_y_var(input$num_y_var)
+    num_fill_var(input$num_fill_var)
+  })
+  
+  output$numeric_plot <- renderPlot({
+    req(num_x_var())
+    current_data <- sub_data()
+    
+    if (num_y_var() == "" || is.null(num_y_var())) {
+      plot <- ggplot(current_data, aes_string(x = num_x_var())) +
+        geom_histogram(bins = 30, aes_string(fill = if (num_fill_var() != "") num_fill_var() else NULL)) +
+        labs(x = num_x_var(), title = num_x_var())
+      
+      if (num_fill_var() != "") {
+        plot <- plot + labs(fill = num_fill_var())}
+    } else {
+      plot <- ggplot(current_data, aes_string(x = num_x_var(), y = num_y_var())) +
+        geom_point(aes_string(color = if (num_fill_var() != "") num_fill_var() else NULL)) +
+        labs(x = num_x_var(), y = num_y_var(),btitle = paste(num_y_var(), "vs", num_x_var()))
+      
+      if (num_fill_var() != "") {
+        plot <- plot + labs(color = num_fill_var())
+      }
+    }
+    plot  
   })
 
 }
