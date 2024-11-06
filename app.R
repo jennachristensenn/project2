@@ -4,6 +4,13 @@ library(tidyverse)
 library(dplyr)
 library(DT)
 
+# additions:
+# - add spinners
+# - write the readme
+# - add names so the variable choices are nicer 
+# - look into reset buttons 
+# - deploy to shiny
+
 # reading in and manipulating data
 dev_data <- read_csv("user_behavior_dataset.csv")
 
@@ -30,7 +37,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       # character var to select
-      h3("Select Variables to Subset the Data:"),
+      h4("Select Variables to Subset the Data:"),
       radioButtons("char_var1",
                    "Device Model",
                    choiceValues = c("All",
@@ -44,7 +51,7 @@ ui <- fluidPage(
                                    "OnePlus",
                                    "Xiaomi Mi",
                                    "iPhone",
-                                   "Samsung Galaxy S21")
+                                   "Samsung Galaxy")
       ),
       radioButtons("char_var2",
                    "Gender",
@@ -55,25 +62,28 @@ ui <- fluidPage(
                                     "Male",
                                     "Female")
       ),
-      # numeric var to select -- find a way to fix names
+      # numeric var to select 
       selectizeInput("num_var1",
                      "Numeric Variable:",
-                     choices = c("app_use_time", "screen_time", "bat_drain", "num_apps", "bat_use", "age"),
+                     choices = c("", "app_use_time", "screen_time", "bat_drain", "num_apps", "bat_use", "age"),
                      multiple = FALSE,
-                     selected = NULL),
+                     selected = ""),
       uiOutput("slider_var1"),
-      # numeric var to select
+      
       selectizeInput("num_var2",
                      "Numeric Variable:",
-                     choices = c("app_use_time", "screen_time", "bat_drain", "num_apps", "bat_use", "age"),
+                     choices = c("", "app_use_time", "screen_time", "bat_drain", "num_apps", "bat_use", "age"),
                      multiple = FALSE,
-                     selected = NULL),
+                     selected = ""),
       uiOutput("slider_var2"),
+      
       # button to subset
       actionButton("subset_sample","Subset the Data")
       ),
+    
       mainPanel(
         tabsetPanel(
+          
           # tabs information
           tabPanel("About", 
                    h3("Purpose of the application"),
@@ -85,7 +95,7 @@ ui <- fluidPage(
                    p("The sidebar is where you can select character and numeric variables to subset the data. Note that your selections will only change the data after the 'Subset the Data' button is pressed."),
                    p("Here in the Abount tab you have an overview of the application and information about the mobile device dataset."),
                    p("In the Download Data tab you will see a preview of a data table, and can make adjustents to this by subsetting on the sidebar. Additionally, you can download a copy of the original or subsetted data to your computer with the 'Download Data' button."),
-                   p("In the Data Exploration tab is where you can explore both qualitative and quantitative summaries as well as graphical representations of the data. Note that you must select desired variables with the sidebar in order to see the output display. "),
+                   p("In the Data Exploration tab is where you can explore both qualitative and quantitative summaries as well as graphical representations of the data."),
                    img(src = "phonesBetter.jpg", width = "60%")
                    ),
           
@@ -105,7 +115,7 @@ ui <- fluidPage(
                               p("Select one or two character variables to display a contingency table. Please note your subset of the data will be reflected in the summary."),
                               selectizeInput("cont_var", 
                                              "Character Variable(s):",
-                                             choices = c("dev_mod", "op_sys", "age", "gender", "user_class"), #try to add names to these so the variables look better
+                                             choices = c("dev_mod", "op_sys", "age", "gender", "user_class"),
                                              multiple = TRUE,
                                              selected = NULL),
                               actionButton("cont_button", "Show Categorical Summary"),
@@ -118,7 +128,7 @@ ui <- fluidPage(
                                              "Numeric Variable:",
                                              choices = c("","app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use"),
                                              multiple = FALSE,
-                                             selected = NULL),
+                                             selected = ""),
                               actionButton("sum_button", "Show Numeric Summary"),
                               verbatimTextOutput("numeric_summary")
                               ),
@@ -183,7 +193,7 @@ server <- function(input, output, session) {
   
   # slider num_var2 conditional 
   output$slider_var2 <- renderUI({
-    req(input$num_var2)
+    req(slide_num_var2())
     sliderInput("slider_var2",
                 label = paste("Select values for", input$num_var2),
                 min = min(dev_data[[input$num_var2]]),
