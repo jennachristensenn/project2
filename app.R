@@ -144,7 +144,15 @@ ui <- fluidPage(
                             p("Select a numeric variable to display a summary of the values. Please note your subset of the data will be reflected in the summary."),
                             selectizeInput("sum_var", 
                                            "Numeric Variable:",
-                                           choices = c("","app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use"),
+                                           choices = list(
+                                             "",
+                                             "App Usage Time (min/day)" = "app_use_time",
+                                             "Screen On Time (hours/day)" = "screen_time",
+                                             "Battery Drain (mAh/day)" = "bat_drain",
+                                             "Number of Apps Installed" = "num_apps",
+                                             "Data Usage (MB/day)" = "dat_use",
+                                             "Age" = "age"
+                                           ),
                                            multiple = FALSE,
                                            selected = ""),
                             actionButton("sum_button", "Show Numeric Summary"),
@@ -168,10 +176,26 @@ ui <- fluidPage(
                    tabPanel("Numeric Visualizations",
                             p("Select a numeric variable for the x-axis to explore numeric graphs. Additionally, select a y-axis variable and a fill variable to display variations or groupings in the data. Please note your subset of the data will be reflected in the graph."),
                             selectInput("num_x_var", "x-axis:", 
-                                        choices = c("", "app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use", "age"),
+                                        choices = list(
+                                          "",
+                                          "App Usage Time (min/day)" = "app_use_time",
+                                          "Screen On Time (hours/day)" = "screen_time",
+                                          "Battery Drain (mAh/day)" = "bat_drain",
+                                          "Number of Apps Installed" = "num_apps",
+                                          "Data Usage (MB/day)" = "dat_use",
+                                          "Age" = "age"
+                                        ),
                                         selected = ""),
                             selectInput("num_y_var", "y-axis:", 
-                                        choices = c("", "app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use", "age"),
+                                        choices = list(
+                                          "",
+                                          "App Usage Time (min/day)" = "app_use_time",
+                                          "Screen On Time (hours/day)" = "screen_time",
+                                          "Battery Drain (mAh/day)" = "bat_drain",
+                                          "Number of Apps Installed" = "num_apps",
+                                          "Data Usage (MB/day)" = "dat_use",
+                                          "Age" = "age"
+                                        ),
                                         selected = ""),
                             selectInput("num_fill_var", "Group By:", 
                                         choices = c("", "dev_mod", "op_sys", "age", "gender", "user_class"),
@@ -186,6 +210,8 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
+  filtered_data <- reactiveVal(dev_data)
+  
   # null values for sliders
   slide_num_var1 <- reactiveVal(NULL)
   slide_num_var2 <- reactiveVal(NULL)
@@ -199,10 +225,10 @@ server <- function(input, output, session) {
     req(slide_num_var1())
     sliderInput("slider_var1",
                 label = paste("Select values for", slide_num_var1()),
-                min = min(dev_data[[slide_num_var1()]]),
-                max = max(dev_data[[slide_num_var1()]]),
-                value = c(min(dev_data[[slide_num_var1()]]), 
-                          max(dev_data[[slide_num_var1()]])))
+                min = min(dev_data[[slide_num_var1()]], na.rm = TRUE),
+                max = max(dev_data[[slide_num_var1()]], na.rm = TRUE),
+                value = c(min(dev_data[[slide_num_var1()]], na.rm = TRUE), 
+                          max(dev_data[[slide_num_var1()]], na.rm = TRUE)))
   })
   
   observeEvent(input$num_var2, {
@@ -214,18 +240,17 @@ server <- function(input, output, session) {
     req(slide_num_var2())
     sliderInput("slider_var2",
                 label = paste("Select values for", input$num_var2),
-                min = min(dev_data[[input$num_var2]]),
-                max = max(dev_data[[input$num_var2]]),
-                value = c(min(dev_data[[input$num_var2]]), 
-                          max(dev_data[[input$num_var2]])))
+                min = min(dev_data[[input$num_var2]], na.rm = TRUE),
+                max = max(dev_data[[input$num_var2]], na.rm = TRUE),
+                value = c(min(dev_data[[input$num_var2]], na.rm = TRUE), 
+                          max(dev_data[[input$num_var2]], na.rm = TRUE)))
   })
   
   # subset data 
-  filtered_data <- reactiveVal(dev_data)
   observeEvent(input$subset_sample, {
     data_subset <- dev_data
     
-    # radio button subset (char)
+    # radio button subset (character variables)
     if (input$char_var1 != "All") {
       data_subset <- data_subset %>%
         filter(dev_mod == input$char_var1)
@@ -236,13 +261,14 @@ server <- function(input, output, session) {
         filter(gender == input$char_var2)
     }
     
-    # select subset (num) -- may need to adjust
-    if (!is.null(input$num_var1)) {
+    # numeric variables subset with conditional checks
+    if (input$num_var1 != "") {  
       data_subset <- data_subset %>%
         filter(get(input$num_var1) >= input$slider_var1[1],
                get(input$num_var1) <= input$slider_var1[2])
     }
-    if (!is.null(input$num_var2)) {
+    
+    if (input$num_var2 != "") {  
       data_subset <- data_subset %>%
         filter(get(input$num_var2) >= input$slider_var2[1],
                get(input$num_var2) <= input$slider_var2[2])
@@ -287,10 +313,10 @@ server <- function(input, output, session) {
       req(tab_char_var())
       
       if (length(tab_char_var()) == 1) {
-        table(sub_data()[[tab_char_var()[1]]])
+        table(filtered_data()[[tab_char_var()[1]]])
         
       } else if (length(tab_char_var()) == 2) {
-        table(sub_data()[[tab_char_var()[1]]], sub_data()[[tab_char_var()[2]]])
+        table(filtered_data()[[tab_char_var()[1]]], filtered_data()[[tab_char_var()[2]]])
         
       } else {
         "Please select one or two character variables."
@@ -305,10 +331,10 @@ server <- function(input, output, session) {
     output$numeric_summary <- renderPrint({
       req(sum_num_var())
       
-      var_data <- sub_data()[[sum_num_var()]]
+      var_data <- filtered_data()[[sum_num_var()]]
       list(
         Summary = summary(var_data),
-        Sd = sd(var_data)
+        Sd = sd(var_data, na.rm = TRUE)
       )
     })
   })
@@ -328,20 +354,20 @@ server <- function(input, output, session) {
   
   output$categorical_plot <- renderPlot({
     req(char_x_var())
-    current_data <- sub_data()
+    current_data <- filtered_data()  
     
-    plot <-ggplot(current_data, aes_string(x = char_x_var())) +
+    plot <- ggplot(current_data, aes_string(x = char_x_var())) +
       geom_bar(position = "dodge") +
       labs(x = char_x_var(), title = char_x_var())
     
     if (char_fill_var() != "") {
-      plot <- plot + aes_string(fill =char_fill_var(), group = char_fill_var()) +
+      plot <- plot + aes_string(fill = char_fill_var(), group = char_fill_var()) +
         labs(fill = char_fill_var())
     }
     plot
   })
   
-  #num var graphs
+  # num var plot
   observeEvent(input$plot_button, {
     num_x_var(input$num_x_var)
     num_y_var(input$num_y_var)
@@ -350,7 +376,7 @@ server <- function(input, output, session) {
   
   output$numeric_plot <- renderPlot({
     req(num_x_var())
-    current_data <- sub_data()
+    current_data <- filtered_data()  
     
     if (num_y_var() == "" || is.null(num_y_var())) {
       plot <- ggplot(current_data, aes_string(x = num_x_var())) +
@@ -358,11 +384,12 @@ server <- function(input, output, session) {
         labs(x = num_x_var(), title = num_x_var())
       
       if (num_fill_var() != "") {
-        plot <- plot + labs(fill = num_fill_var())}
+        plot <- plot + labs(fill = num_fill_var())
+      }
     } else {
       plot <- ggplot(current_data, aes_string(x = num_x_var(), y = num_y_var())) +
         geom_point(aes_string(color = if (num_fill_var() != "") num_fill_var() else NULL)) +
-        labs(x = num_x_var(), y = num_y_var(),btitle = paste(num_y_var(), "vs", num_x_var()))
+        labs(x = num_x_var(), y = num_y_var(), title = paste(num_y_var(), "vs", num_x_var()))
       
       if (num_fill_var() != "") {
         plot <- plot + labs(color = num_fill_var())
