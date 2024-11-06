@@ -3,13 +3,13 @@ library(shinyalert)
 library(tidyverse)
 library(dplyr)
 library(DT)
+library(shinycssloaders)
 
 # additions:
-# - add spinners
-# - write the readme
 # - add names so the variable choices are nicer 
 # - look into reset buttons 
 # - deploy to shiny
+# - don't allow same var selection
 
 # reading in and manipulating data
 dev_data <- read_csv("user_behavior_dataset.csv")
@@ -28,6 +28,24 @@ dev_data <- dev_data |>
          "user_class" = "User Behavior Class") |>
   mutate(across(c(dev_mod, op_sys, gender, user_class), as.factor)) |>
   mutate(user_id = as.character(user_id))
+
+num_choices <- c(
+  "App Usage Time (min/day)" = "app_use_time",
+  "Screen On Time (hr/day)" = "screen_time",
+  "Battery Drain (mAh/day)" = "bat_drain",
+  "Number of Apps Installed" = "num_apps",
+  "Battery Usage (MB/day)" = "bat_use", 
+  "Age" = "age"
+  )
+
+char_choices <- c(
+  "Device Model" = "dev_mod",
+  "Operating System" = "op_sys",
+  "Gender" = "gender",
+  "User Behavior Class" = "user_class"
+  )
+
+
 
 # define UI for application 
 ui <- fluidPage(
@@ -65,14 +83,14 @@ ui <- fluidPage(
       # numeric var to select 
       selectizeInput("num_var1",
                      "Numeric Variable:",
-                     choices = c("", "app_use_time", "screen_time", "bat_drain", "num_apps", "bat_use", "age"),
+                     choices = num_choices,
                      multiple = FALSE,
                      selected = ""),
       uiOutput("slider_var1"),
       
       selectizeInput("num_var2",
                      "Numeric Variable:",
-                     choices = c("", "app_use_time", "screen_time", "bat_drain", "num_apps", "bat_use", "age"),
+                     choices = num_choices,
                      multiple = FALSE,
                      selected = ""),
       uiOutput("slider_var2"),
@@ -115,7 +133,7 @@ ui <- fluidPage(
                               p("Select one or two character variables to display a contingency table. Please note your subset of the data will be reflected in the summary."),
                               selectizeInput("cont_var", 
                                              "Character Variable(s):",
-                                             choices = c("dev_mod", "op_sys", "age", "gender", "user_class"),
+                                             choices = char_choices,
                                              multiple = TRUE,
                                              selected = NULL),
                               actionButton("cont_button", "Show Categorical Summary"),
@@ -126,9 +144,9 @@ ui <- fluidPage(
                               p("Select a numeric variable to display a summary of the values. Please note your subset of the data will be reflected in the summary."),
                               selectizeInput("sum_var", 
                                              "Numeric Variable:",
-                                             choices = c("","app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use"),
+                                             choices = num_choices,
                                              multiple = FALSE,
-                                             selected = ""),
+                                             selected = NULL),
                               actionButton("sum_button", "Show Numeric Summary"),
                               verbatimTextOutput("numeric_summary")
                               ),
@@ -137,29 +155,29 @@ ui <- fluidPage(
                               p("Select a categorical variable for the x-axis to explore bar charts. Additionally select a variable to differentiate between groups. Please note your subset of the data will be reflected in the graph. "),
                               selectInput("cat_x_var",
                                           "x-axis:",
-                                          choices = c("","dev_mod", "op_sys", "age", "gender", "user_class"),
-                                          selected = ""),
+                                          choices = char_choices,
+                                          selected = NULL),
                               selectInput("cat_fill_var",
                                           "Group By:",
-                                          choices = c("","dev_mod", "op_sys", "age", "gender", "user_class"),
-                                          selected = ""),
+                                          choices = char_choices,
+                                          selected = NULL),
                               actionButton("bar_button", "Show Categorical Visualization"),
-                              plotOutput("categorical_plot")
+                              withSpinner(plotOutput("categorical_plot"))
                               ),
                      
                      tabPanel("Numeric Visualizations",
                               p("Select a numeric variable for the x-axis to explore numeric graphs. Additionally, select a y-axis variable and a fill variable to display variations or groupings in the data. Please note your subset of the data will be reflected in the graph."),
                               selectInput("num_x_var", "x-axis:", 
-                                          choices = c("", "app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use", "age"),
-                                          selected = ""),
+                                          choices = num_choices,
+                                          selected = NULL),
                               selectInput("num_y_var", "y-axis:", 
-                                          choices = c("", "app_use_time", "screen_time", "bat_drain", "num_apps", "dat_use", "age"),
-                                          selected = ""),
+                                          choices = num_choices,
+                                          selected = NULL),
                               selectInput("num_fill_var", "Group By:", 
-                                          choices = c("", "dev_mod", "op_sys", "age", "gender", "user_class"),
-                                          selected = ""),
+                                          choices = char_choices,
+                                          selected = NULL),
                               actionButton("plot_button", "Show Numeric Visualization"),
-                              plotOutput("numeric_plot"))
+                              withSpinner(plotOutput("numeric_plot")))
                    ))
         )
       )
@@ -168,72 +186,69 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  # null values for sliders
+  # Null values for sliders
   slide_num_var1 <- reactiveVal(NULL)
   slide_num_var2 <- reactiveVal(NULL)
   
   observeEvent(input$num_var1, {
-    slide_num_var1(input$num_var1)
+    slide_num_var1(num_choices[input$num_var1])
   })
   
-  # slider num_var1 conditional 
+  # Slider for num_var1
   output$slider_var1 <- renderUI({
     req(slide_num_var1())
     sliderInput("slider_var1",
                 label = paste("Select values for", slide_num_var1()),
-                min = min(dev_data[[slide_num_var1()]]),
-                max = max(dev_data[[slide_num_var1()]]),
-                value = c(min(dev_data[[slide_num_var1()]]), 
-                          max(dev_data[[slide_num_var1()]])))
+                min = min(dev_data[[slide_num_var1()]], na.rm = TRUE),
+                max = max(dev_data[[slide_num_var1()]], na.rm = TRUE),
+                value = c(min(dev_data[[slide_num_var1()]], na.rm = TRUE), 
+                          max(dev_data[[slide_num_var1()]], na.rm = TRUE)))
   })
   
   observeEvent(input$num_var2, {
-    slide_num_var2(input$num_var2)
+    slide_num_var2(num_choices[input$num_var2])
   })
   
-  # slider num_var2 conditional 
+  # Slider for num_var2
   output$slider_var2 <- renderUI({
     req(slide_num_var2())
     sliderInput("slider_var2",
-                label = paste("Select values for", input$num_var2),
-                min = min(dev_data[[input$num_var2]]),
-                max = max(dev_data[[input$num_var2]]),
-                value = c(min(dev_data[[input$num_var2]]), 
-                          max(dev_data[[input$num_var2]])))
+                label = paste("Select values for", slide_num_var2()),
+                min = min(dev_data[[slide_num_var2()]], na.rm = TRUE),
+                max = max(dev_data[[slide_num_var2()]], na.rm = TRUE),
+                value = c(min(dev_data[[slide_num_var2()]], na.rm = TRUE), 
+                          max(dev_data[[slide_num_var2()]], na.rm = TRUE)))
   })
   
-  # subset data 
+  # Filtered data reactive
   filtered_data <- reactiveVal(dev_data)
-    observeEvent(input$subset_sample, {
-      data_subset <- dev_data
+  observeEvent(input$subset_sample, {
+    data_subset <- dev_data
     
-    # radio button subset (char)
+    # Apply character variable filters
     if (input$char_var1 != "All") {
-      data_subset <- data_subset %>%
-        filter(dev_mod == input$char_var1)
+      data_subset <- data_subset %>% filter(dev_mod == input$char_var1)
     }
-    
     if (input$char_var2 != "All") {
-      data_subset <- data_subset %>%
-        filter(gender == input$char_var2)
+      data_subset <- data_subset %>% filter(gender == input$char_var2)
     }
     
-    # select subset (num) -- may need to adjust
-    if (!is.null(input$num_var1)) {
+    # Apply numeric variable filters
+    if (!is.null(input$num_var1) && input$num_var1 != "") {
       data_subset <- data_subset %>%
-        filter(get(input$num_var1) >= input$slider_var1[1],
-               get(input$num_var1) <= input$slider_var1[2])
+        filter(get(slide_num_var1()) >= input$slider_var1[1],
+               get(slide_num_var1()) <= input$slider_var1[2])
     }
-    if (!is.null(input$num_var2)) {
+    if (!is.null(input$num_var2) && input$num_var2 != "") {
       data_subset <- data_subset %>%
-        filter(get(input$num_var2) >= input$slider_var2[1],
-               get(input$num_var2) <= input$slider_var2[2])
+        filter(get(slide_num_var2()) >= input$slider_var2[1],
+               get(slide_num_var2()) <= input$slider_var2[2])
     }
-  
+    
     filtered_data(data_subset)
   })
   
-  # using the filtered data unless not set 
+  # Using the filtered data unless not set 
   sub_data <- reactive({
     if (input$subset_sample > 0) {
       filtered_data()
@@ -242,12 +257,12 @@ server <- function(input, output, session) {
     }
   })
   
-  # data table output
+  # Data table output
   output$data_table <- DT::renderDataTable({
     sub_data()
   })
   
-  # download the data
+  # Download the data
   output$download_data <- downloadHandler(
     filename = function() {
       paste("mobile_device_data", ".csv", sep = "") 
@@ -257,11 +272,11 @@ server <- function(input, output, session) {
     }
   )
   
-  # null values for summary buttons
+  # Null values for summary buttons
   tab_char_var <- reactiveVal(NULL)
   sum_num_var <- reactiveVal(NULL)
   
-  # contingency table output
+  # Contingency table output
   observeEvent(input$cont_button, {
     tab_char_var(input$cont_var)
     
@@ -280,7 +295,7 @@ server <- function(input, output, session) {
     })
   })
   
-  # numeric summaries output
+  # Numeric summaries output
   observeEvent(input$sum_button, {
     sum_num_var(input$sum_var)
     
@@ -295,64 +310,68 @@ server <- function(input, output, session) {
     })
   })
   
-  # null values for graph buttons
+  # Null values for graph buttons
   char_x_var <- reactiveVal(NULL)
   char_fill_var <- reactiveVal(NULL)
   num_x_var <- reactiveVal(NULL)
   num_y_var <- reactiveVal(NULL)
   num_fill_var <- reactiveVal(NULL)
   
-  # cat var graphs
+  # Categorical variable graphs
   observeEvent(input$bar_button, {
-    char_x_var(input$cat_x_var)
-    char_fill_var(input$cat_fill_var)
+    char_x_var(char_choices[input$cat_x_var])
+    char_fill_var(char_choices[input$cat_fill_var])
   })
   
   output$categorical_plot <- renderPlot({
     req(char_x_var())
     current_data <- sub_data()
     
-    plot <-ggplot(current_data, aes_string(x = char_x_var())) +
+    # Define plot with conditional `fill` aesthetic
+    plot <- ggplot(current_data, aes(x = .data[[char_x_var()]])) +
       geom_bar(position = "dodge") +
-      labs(x = char_x_var(), title = char_x_var())
+      labs(x = input$cat_x_var, title = input$cat_x_var)
     
-    if (char_fill_var() != "") {
-      plot <- plot + aes_string(fill =char_fill_var(), group = char_fill_var()) +
-        labs(fill = char_fill_var())
-      }
-      plot
-    })
+    if (!is.null(char_fill_var()) && char_fill_var() != "") {
+      plot <- plot + aes(fill = .data[[char_fill_var()]]) +
+        labs(fill = input$cat_fill_var)
+    }
+    plot
+  })
   
-  #num var graphs
+  # Numeric variable graphs
   observeEvent(input$plot_button, {
-    num_x_var(input$num_x_var)
-    num_y_var(input$num_y_var)
-    num_fill_var(input$num_fill_var)
+    num_x_var(num_choices[input$num_x_var])
+    num_y_var(num_choices[input$num_y_var])
+    num_fill_var(char_choices[input$num_fill_var])
   })
   
   output$numeric_plot <- renderPlot({
     req(num_x_var())
     current_data <- sub_data()
     
-    if (num_y_var() == "" || is.null(num_y_var())) {
-      plot <- ggplot(current_data, aes_string(x = num_x_var())) +
-        geom_histogram(bins = 30, aes_string(fill = if (num_fill_var() != "") num_fill_var() else NULL)) +
-        labs(x = num_x_var(), title = num_x_var())
+    # Histogram if only x-axis is selected
+    if (is.null(num_y_var()) || num_y_var() == "") {
+      plot <- ggplot(current_data, aes(x = .data[[num_x_var()]])) +
+        geom_histogram(bins = 30, aes(fill = ifelse(num_fill_var() != "", .data[[num_fill_var()]], NA))) +
+        labs(x = input$num_x_var, title = input$num_x_var)
       
-      if (num_fill_var() != "") {
-        plot <- plot + labs(fill = num_fill_var())}
-    } else {
-      plot <- ggplot(current_data, aes_string(x = num_x_var(), y = num_y_var())) +
-        geom_point(aes_string(color = if (num_fill_var() != "") num_fill_var() else NULL)) +
-        labs(x = num_x_var(), y = num_y_var(),btitle = paste(num_y_var(), "vs", num_x_var()))
+      if (!is.null(num_fill_var()) && num_fill_var() != "") {
+        plot <- plot + labs(fill = input$num_fill_var)
+      }
       
-      if (num_fill_var() != "") {
-        plot <- plot + labs(color = num_fill_var())
+    } else {  # Scatter plot if both x and y axes are selected
+      plot <- ggplot(current_data, aes(x = .data[[num_x_var()]], y = .data[[num_y_var()]])) +
+        geom_point(aes(color = ifelse(num_fill_var() != "", .data[[num_fill_var()]], NA))) +
+        labs(x = input$num_x_var, y = input$num_y_var, title = paste(input$num_y_var, "vs", input$num_x_var))
+      
+      if (!is.null(num_fill_var()) && num_fill_var() != "") {
+        plot <- plot + labs(color = input$num_fill_var)
       }
     }
+    
     plot  
   })
-
 }
 
 shinyApp(ui = ui, server = server)
